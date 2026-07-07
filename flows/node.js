@@ -132,10 +132,12 @@ export class BaseNode {
      * @returns {Number} the index
      */
     addConnectionPoint(type, side, id, tooltip) {
-        return this.connectionPoints.push(new ConnectionPoint({
+        const length = this.connectionPoints.push(new ConnectionPoint({
             node: this, type, side, id, tooltip, value: 0, // should technically be null... but... whatever
             active: true // only false when they are "added" or "removed"
         }))
+        this.subflow?.markRuntimeCachesDirty?.()
+        return length
     }
 
     getConnectionPoint(indexOrId) {

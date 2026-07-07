@@ -95,6 +95,10 @@ export class Connection {
         this.b = this.points[1]
     }
 
+    markRuntimeCachesDirty() {
+        this.flow?.markRuntimeCachesDirty?.()
+    }
+
     isValid() {
         // a wire is valid if it has at least 1 node point
         return this.points.some(p => p.node != null)
@@ -102,6 +106,7 @@ export class Connection {
 
     addEdge(a, b) {
         this.edges.push([a, b])
+        this.markRuntimeCachesDirty()
     }
 
     addPoint(x, y) {
@@ -111,10 +116,13 @@ export class Connection {
                 return index
             else {
                 this.points.push(x)
+                this.markRuntimeCachesDirty()
             }
         }
-        else // x, y
+        else { // x, y
             this.points.push({position: [x, y]}) //this.visualPoints.push([x, y])
+            this.markRuntimeCachesDirty()
+        }
         return this.points.length - 1
     }
 
@@ -133,6 +141,7 @@ export class Connection {
     deletePoint(index) {
         this.points.splice(index, 1)
         this.shiftEdges(index)
+        this.markRuntimeCachesDirty()
     }
 
     dissolvePoint(index, onlyOrphaned) {
@@ -172,6 +181,7 @@ export class Connection {
 
     deleteEdge(index) {
         this.edges.splice(index, 1)
+        this.markRuntimeCachesDirty()
     }
 
     dissolveEdge(index) {

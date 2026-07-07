@@ -23,15 +23,28 @@ export class Flow {
 
         this.loaded = false
         this.onload = null
+        this.runtimeCachesDirty = true
+        this.runtimeEditor = null
     }
 
     getNodesAt(x, y) {
         return this.nodes.filter(n => n.isHovering(x, y))
     }
 
+    addNode(node) {
+        this.nodes.push(node)
+        node.editor = this.runtimeEditor ?? this.editor
+        this.markRuntimeCachesDirty()
+        return node
+    }
+
     removeNode(node) {
+        const index = this.nodes.indexOf(node)
+        if (index < 0)
+            return
         this.getConnectionsTo(node).forEach(c => this.cutConnection(c))
-        this.nodes.splice(this.nodes.indexOf(node), 1)
+        this.nodes.splice(index, 1)
+        this.markRuntimeCachesDirty()
     }
 
     getConnectionsAt(x, y) {
@@ -58,8 +71,24 @@ export class Flow {
         return this.connectionDefinitions[defA.connection]
     }
 
+    addConnection(connection) {
+        this.connections.push(connection)
+        connection.editor = this.runtimeEditor ?? this.editor
+        connection.flow = this
+        this.markRuntimeCachesDirty()
+        return connection
+    }
+
     cutConnection(connection) {
-        this.connections.splice(this.connections.indexOf(connection), 1)
+        const index = this.connections.indexOf(connection)
+        if (index < 0)
+            return
+        this.connections.splice(index, 1)
+        this.markRuntimeCachesDirty()
+    }
+
+    markRuntimeCachesDirty() {
+        this.runtimeCachesDirty = true
     }
 
     /**
@@ -181,10 +210,19 @@ export class Flow {
      * Update node states
      */
     update(editor, filtered) {
-        this.updateEditor(editor)
-        upprofiler.group('sort priority')
-        this.nodes.sort((a, b) => b.getPriority() - a.getPriority())
-        upprofiler.close()
+        this.editor = editor
+        editor.flow = this
+        if (this.runtimeCachesDirty || this.runtimeEditor != editor) {
+            upprofiler.group('sort priority')
+            this.nodes.sort((a, b) => b.getPriority() - a.getPriority())
+            upprofiler.close()
+            upprofiler.group('update runtime cache')
+            this.updateEditor(editor)
+            this.updateNodeConnectionCaches()
+            this.runtimeCachesDirty = false
+            this.runtimeEditor = editor
+            upprofiler.close()
+        }
         const nodes = filtered ?? this.nodes//filter != null ? this.nodes.filter(filter) : this.nodes
         nodes.forEach(n => {
             n.needsSoftUpdate = true
@@ -192,9 +230,6 @@ export class Flow {
             n.debug.depth = 0
             n.debug.updated = false
         })
-        upprofiler.group('update connection cache')
-        this.updateNodeConnectionCaches()
-        upprofiler.close()
         upprofiler.group('update nodes')
         nodes.forEach(n => {
             upprofiler.group(`update ${n.display} node`)
@@ -219,6 +254,7 @@ export class Flow {
         editor.flow = this
         this.connections.forEach(c => {
             c.editor = editor
+            c.flow = this
         })
         this.nodes.forEach(n => {
             n.editor = editor
@@ -319,6 +355,7 @@ export class Flow {
         this.nodeDefinitions = otherFlow.nodeDefinitions
         this.connectionDefinitions = otherFlow.connectionDefinitions
         this.loaded = true
+        this.markRuntimeCachesDirty()
     }
 
     async deserialize(json, main_flow) {
@@ -339,7 +376,7 @@ export class Flow {
             for (const subflow of json.subflows) {
                 const instance = new Subflow(this) // not main_flow since subflows should never be able to have subflows
                 await instance.deserialize(subflow, main_flow)
-                flow.subflows.push(instance)
+                flow.addSubflow(instance)
             }
         }
         
@@ -354,7 +391,7 @@ export class Flow {
             created.flow = main_flow
             created.subflow = this
             created.deserialize(node)
-            flow.nodes.push(created)
+            flow.addNode(created)
         })
         json.connections.forEach(connection => {
             const def = flow.connectionDefinitions[connection.id]
@@ -367,7 +404,7 @@ export class Flow {
             created.deserialize(connection, flow)
             if (created.points.length < 2)
                 return // damn
-            flow.connections.push(created)
+            flow.addConnection(created)
         })
 
         return this
@@ -411,7 +448,21 @@ export class Flow {
                 }
             ]
         })
-        this.subflows.push(sf)
+        this.addSubflow(sf)
+    }
+
+    addSubflow(subflow) {
+        this.subflows.push(subflow)
+        subflow.markRuntimeCachesDirty()
+        this.markRuntimeCachesDirty()
+    }
+
+    removeSubflow(subflow) {
+        const index = this.subflows.indexOf(subflow)
+        if (index < 0)
+            return
+        this.subflows.splice(index, 1)
+        this.markRuntimeCachesDirty()
     }
 
     revise() {

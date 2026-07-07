@@ -159,8 +159,8 @@ export class EditorState {
         try {
             switch (mostRecent.event) {
                 case 'delete':
-                    mostRecent.objects.nodes.forEach(obj => this.editor.flow.nodes.push(obj))
-                    mostRecent.objects.connections.forEach(obj => this.editor.flow.connections.push(obj))
+                    mostRecent.objects.nodes.forEach(obj => this.editor.flow.addNode(obj))
+                    mostRecent.objects.connections.forEach(obj => this.editor.flow.addConnection(obj))
                     mostRecent.objects.subpoints.forEach(obj => {
                         obj[0].visualPoints.splice(obj[1], 0, obj[2])
                     })
@@ -341,7 +341,7 @@ export class EditorState {
                 this.creatingConnection = new (this.editor.flow.getConnectionFor(points[0]))(points[0], null)
                 this.creatingConnection.color = this.connectionColor
                 this.creatingConnectionPointIndex = 0
-                this.editor.flow.connections.push(this.creatingConnection)
+                this.editor.flow.addConnection(this.creatingConnection)
                 points[0].node.invalidatePoint(points[0].id)
             }
             else {
@@ -416,7 +416,7 @@ export class EditorState {
                         this.creatingConnection.points.forEach((p, idx) => {
                             mergeMap[idx] = merging.addPoint(p)
                         })
-                        this.creatingConnection.edges.forEach(e => merging.edges.push([mergeMap[e[0]], mergeMap[e[1]]]))
+                        this.creatingConnection.edges.forEach(e => merging.addEdge(mergeMap[e[0]], mergeMap[e[1]]))
                         this.creatingConnectionPointIndex = mergeMap[this.creatingConnectionPointIndex]
                         merging.addEdge(this.creatingConnectionPointIndex, subpoint)
                         this.flow.cutConnection(this.creatingConnection)
@@ -443,7 +443,7 @@ export class EditorState {
                         this.creatingConnection.points.forEach((p, idx) => {
                             mergeMap[idx] = merging.addPoint(p)
                         })
-                        this.creatingConnection.edges.forEach(e => merging.edges.push([mergeMap[e[0]], mergeMap[e[1]]]))
+                        this.creatingConnection.edges.forEach(e => merging.addEdge(mergeMap[e[0]], mergeMap[e[1]]))
                         this.creatingConnectionPointIndex = mergeMap[this.creatingConnectionPointIndex]
                         this.flow.cutConnection(this.creatingConnection)
                     }
@@ -769,7 +769,7 @@ export class EditorState {
                 dupe.deserialize(JSON.parse(JSON.stringify(node.serialize())))
                 dupe.position = addV2(dupe.position, OFFSET)
                 dupe.needsConnectionUpdate = true // fix bug attempt
-                this.editor.flow.nodes.push(dupe)
+                this.editor.flow.addNode(dupe)
                 duplicates.push([dupe, node])
             }
 
@@ -795,7 +795,7 @@ export class EditorState {
                     }
                 })
                 duplicate.color = connection.color
-                this.editor.flow.connections.push(duplicate)
+                this.editor.flow.addConnection(duplicate)
 
                 /*const nodeA = duplicates.find(nodes => (nodes[1] == connection.points[0].node)) ?? [connection.points[0].node]
                 const nodeB = duplicates.find(nodes => (nodes[1] == connection.points[1].node)) ?? [connection.points[1].node]
@@ -1269,7 +1269,7 @@ export class EditorState {
         fix_flow(this.editor.main_flow)
         this.editor.main_flow.subflows.forEach(fix_flow)
         
-        this.editor.main_flow.subflows.splice(index, 1)
+        this.editor.main_flow.removeSubflow(sf)
     }
 
     changeFlows(newFlow) {
@@ -1406,7 +1406,7 @@ export class EditorState {
         this.creatingNode.flow = this.editor.main_flow
         this.creatingNode.subflow = this.editor.flow
         this.creatingNode.position[0] = -100000000000
-        this.editor.flow.nodes.push(this.creatingNode)
+        this.editor.flow.addNode(this.creatingNode)
         this.selectNodes([this.creatingNode])
     }
 
