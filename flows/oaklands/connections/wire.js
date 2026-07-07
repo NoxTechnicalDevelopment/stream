@@ -22,7 +22,10 @@ function dotV2(a, b) {
 
 function getPointPos(point) {
     if (point.node)
-        return [point.node.position[0] + point.position?.[0] ?? 0, point.node.position[1] + point.position?.[1] ?? 0]
+        return [
+            point.node.position[0] + (point.position?.[0] ?? 0),
+            point.node.position[1] + (point.position?.[1] ?? 0)
+        ]
     return point.position
 }
 
