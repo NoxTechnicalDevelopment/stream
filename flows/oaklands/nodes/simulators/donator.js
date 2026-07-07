@@ -18,6 +18,7 @@ export class Node extends BaseNode {
         this.addConnectionPoint('output', 'left', '#out1', 'The user id of the user that bought it')
         this.addConnectionPoint('output', 'left', '#out2', 'The user id of the user that bought it')
 
+        this.cached = true
         this.pressed = false
         this.cooldown = false
     }
@@ -32,12 +33,14 @@ export class Node extends BaseNode {
                 if (this.pressed)
                     return
                 this.pressed = true
+                this.invalidate()
                 for (let i = 0; i < 2; i++)
                     this.setConnectionPointValue(`#out${i + 1}`, 12345678)
                 this.schedule(() => {
                     for (let i = 0; i < 2; i++)
                         this.setConnectionPointValue(`#out${i + 1}`, 0)
                     this.pressed = false
+                    this.invalidate()
                 }, 1)
                 break
         }
@@ -47,8 +50,9 @@ export class Node extends BaseNode {
      * @param {CanvasRenderingContext2D} context 
      */
     draw(context) {
-        super.draw(context)
-
+        const context2 = super.draw(context)
+        if (!context2)
+            return this.cacheDraw(context)
         const size = this.getSize()
         const centerX = size[0] / 2
         const centerY = size[1] / 2
@@ -57,16 +61,18 @@ export class Node extends BaseNode {
         const height = 20
 
         // draw button
-        context.fillStyle = this.pressed ? 'red' : 'green'
-        context.beginPath()
-        context.roundRect(centerX - width / 2, centerY - height / 2, width, height, 10)
-        context.fill()
+        context2.fillStyle = this.pressed ? 'red' : 'green'
+        context2.beginPath()
+        context2.roundRect(centerX - width / 2, centerY - height / 2, width, height, 10)
+        context2.fill()
 
         // text
-        context.fillStyle = '#fff'
-        context.font = 'bold 15px monospace'
-        context.textAlign = 'center'
-        context.textBaseline = 'middle'
-        context.fillText('Donate', centerX, centerY)
+        context2.fillStyle = '#fff'
+        context2.font = 'bold 15px monospace'
+        context2.textAlign = 'center'
+        context2.textBaseline = 'middle'
+        context2.fillText('Donate', centerX, centerY)
+
+        this.cacheDraw(context)
     }
 }
