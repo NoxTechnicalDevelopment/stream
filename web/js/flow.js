@@ -141,22 +141,31 @@ export class Flow {
 
     _updateNode(node, depth=0, hold=false) {
         const flow = this
+        const debug = node.editor?.debug
         if (depth > 0) {
             if (node.hasUpdated)
                 return
             node.hasUpdated = true
             node.needsSoftUpdate = false
-            const a = performance.now()
-            node.update()
-            node.debug.updateTime = performance.now() - a
+            if (debug) {
+                const a = performance.now()
+                node.update()
+                node.debug.updateTime = performance.now() - a
+            }
+            else
+                node.update()
             node.debug.depth = depth // * 2 // why was i * 2 it?
         }
         if (node.needsSoftUpdate) {
             node.needsSoftUpdate = false
-            const a = performance.now()
-            node.update()
-            node.debug.softUpdateTime = performance.now() - a
-            node.debug.updated = true
+            if (debug) {
+                const a = performance.now()
+                node.update()
+                node.debug.softUpdateTime = performance.now() - a
+                node.debug.updated = true
+            }
+            else
+                node.update()
         }
         
         //if (hold && node.needsConnectionUpdate)
@@ -212,16 +221,21 @@ export class Flow {
     update(editor, filtered) {
         this.editor = editor
         editor.flow = this
+        const profiling = upprofiler.enabled
         if (this.runtimeCachesDirty || this.runtimeEditor != editor) {
-            upprofiler.group('sort priority')
+            if (profiling)
+                upprofiler.group('sort priority')
             this.nodes.sort((a, b) => b.getPriority() - a.getPriority())
-            upprofiler.close()
-            upprofiler.group('update runtime cache')
+            if (profiling) {
+                upprofiler.close()
+                upprofiler.group('update runtime cache')
+            }
             this.updateEditor(editor)
             this.updateNodeConnectionCaches()
             this.runtimeCachesDirty = false
             this.runtimeEditor = editor
-            upprofiler.close()
+            if (profiling)
+                upprofiler.close()
         }
         const nodes = filtered ?? this.nodes//filter != null ? this.nodes.filter(filter) : this.nodes
         nodes.forEach(n => {
@@ -230,13 +244,17 @@ export class Flow {
             n.debug.depth = 0
             n.debug.updated = false
         })
-        upprofiler.group('update nodes')
+        if (profiling)
+            upprofiler.group('update nodes')
         nodes.forEach(n => {
-            upprofiler.group(`update ${n.display} node`)
+            if (profiling)
+                upprofiler.group(`update ${n.display} node`)
             this._updateNode(n)
-            upprofiler.close()
+            if (profiling)
+                upprofiler.close()
         })
-        upprofiler.close()
+        if (profiling)
+            upprofiler.close()
         this.connections.forEach(c => {
             c.value = c.nextValue ?? c.value
             c.nextValue = null
@@ -322,7 +340,9 @@ export class Flow {
      */
     draw(context) {
         const drawConnections = this.editor == null || this.editor.drawConnections != false
-        profiler.group('draw nodes')
+        const profiling = profiler.enabled
+        if (profiling)
+            profiler.group('draw nodes')
         this.nodes.forEach(n => {
             if (!this.isBoundsVisible(this.getNodeBounds(n))) {
                 if (drawConnections)
@@ -330,12 +350,17 @@ export class Flow {
                 return
             }
             context.save()
-            const a = performance.now()
-            n.draw(context)
-            n.debug.drawTime = performance.now() - a
+            if (n.editor?.debug) {
+                const a = performance.now()
+                n.draw(context)
+                n.debug.drawTime = performance.now() - a
+            }
+            else
+                n.draw(context)
             context.restore()
         })
-        profiler.swap('draw connections')
+        if (profiling)
+            profiler.swap('draw connections')
         if (drawConnections) {
             this.connections.forEach(c => {
                 if (!this.isBoundsVisible(this.getConnectionBounds(c)))
@@ -345,7 +370,8 @@ export class Flow {
                 context.restore()
             })
         }
-        profiler.close()
+        if (profiling)
+            profiler.close()
     }
 
     loadFrom(otherFlow) {

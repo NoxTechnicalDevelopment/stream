@@ -1852,8 +1852,11 @@ export class EditorState {
         const profilerTotals = document.querySelector('#profiler-totals')
 
         function drawProfile(profiler) {
-            profilerDialog.showModal()
             const data = profiler.history[profiler.history.length - 1]
+            if (data == null || data.length == 0)
+                return
+            if (!profilerDialog.open)
+                profilerDialog.showModal()
             const ctx = profilerCanvas.getContext('2d')
             const width = profilerCanvas.width
             const height = profilerCanvas.height
@@ -1884,13 +1887,24 @@ export class EditorState {
             return profiler
         }
 
+        const captureProfile = profiler => {
+            profiler.capture()
+            const wait = () => {
+                if (profiler.enabled)
+                    requestAnimationFrame(wait)
+                else
+                    drawProfile(profiler)
+            }
+            requestAnimationFrame(wait)
+        }
+
         document.querySelector('#profiler').addEventListener('click', () => {
-            drawProfile(getProfiler())
+            captureProfile(getProfiler())
         })
 
         profilerRadios.forEach((r) => {
             r.addEventListener('change', () => {
-                drawProfile(getProfiler())
+                captureProfile(getProfiler())
             })
         })
     }

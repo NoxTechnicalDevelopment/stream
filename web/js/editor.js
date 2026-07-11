@@ -91,18 +91,21 @@ class Editor {
         const millisecondsPerUpdate = (this.flow.updateSpeed || 1) * 1000
         this.delta += Math.min(dt, 100)
 
-        if (this.delta >= millisecondsPerUpdate)
+        const profiling = upprofiler.enabled
+        if (profiling && this.delta >= millisecondsPerUpdate)
             upprofiler.group('update')
 
         var updates = 0
         while (this.delta >= millisecondsPerUpdate /*&& !(this.state.debug && context.editor.pause)*/) {
-            upprofiler.group(`update ${updates}`)
+            if (profiling)
+                upprofiler.group(`update ${updates}`)
             this.delta -= millisecondsPerUpdate
             this.main_flow.update(this.state)
             if (this.flow != this.main_flow)
                 this.flow.update(this.state) // for editing subflows, we need to make sure the nodes are working correctly :D
             updates += 1
-            upprofiler.close()
+            if (profiling)
+                upprofiler.close()
             if (updates > 9) {
                 console.warn('>=10 updates in a single frame, aborting')
                 this.delta = 0
@@ -110,7 +113,7 @@ class Editor {
             }
         }
         
-        if (upprofiler.groupDepth > 0) {
+        if (profiling && upprofiler.groupDepth > 0) {
             upprofiler.close()
             upprofiler.log()
         }
@@ -147,8 +150,11 @@ class Editor {
         }
 
         // profile
-        profiler.group('draw')
-        profiler.group('grid')
+        const profiling = profiler.enabled
+        if (profiling) {
+            profiler.group('draw')
+            profiler.group('grid')
+        }
 
         // clear
         if (this.shouldResetContextEachFrame)
@@ -186,7 +192,8 @@ class Editor {
         }
         context.stroke()
 
-        profiler.swap('flow')
+        if (profiling)
+            profiler.swap('flow')
     
         // draw nodes
         context.globalAlpha = 1
@@ -196,7 +203,8 @@ class Editor {
 
         this.flow.draw(context)
 
-        profiler.swap('tooltips')
+        if (profiling)
+            profiler.swap('tooltips')
 
         context.strokeStyle = '#0a0'
         context.lineWidth = 2
@@ -310,8 +318,10 @@ class Editor {
             context.stroke()
         })
 
-        profiler.close()
-        profiler.close()
+        if (profiling) {
+            profiler.close()
+            profiler.close()
+        }
     }
     
     loop = async (timestamp) => {
