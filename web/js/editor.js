@@ -23,7 +23,7 @@ class Editor {
      */
     constructor(canvas) {
         this.canvas = canvas
-        this.context = canvas.getContext('2d')
+        this.context = canvas.getContext('2d', {alpha: false})
         this.main_flow = new Flow() // core flow, contains subflows; (.subflows)-- managed with setting .flow
         this.flow = this.main_flow // active flow
         this.state = new EditorState()
@@ -56,6 +56,7 @@ class Editor {
                 context.fillRect(0, 0, 1600, 900)
                 context.fillStyle = '#ddd'
                 context.strokeStyle = '#555'
+                context.beginPath()
                 context.rect(10, 10, 40, 20)
                 context.fill()
                 context.stroke()
@@ -83,7 +84,7 @@ class Editor {
         }
     }
 
-    async update(dt) {
+    update(dt) {
         if (this.loading) {
             this.delta = 0
             return
@@ -119,7 +120,7 @@ class Editor {
         }
     }
     
-    async draw() {
+    draw() {
         const canvas = this.canvas
         const context = this.context
 
@@ -140,8 +141,6 @@ class Editor {
     
         context.width = width
         context.height = height
-        context.imageSmoothingEnabled = true
-        context.imageSmoothingQuality = 'high'
         this.state.viewport = {
             left: -pan[0],
             top: -pan[1],
@@ -324,7 +323,7 @@ class Editor {
         }
     }
     
-    loop = async (timestamp) => {
+    loop = (timestamp) => {
         // calculate delta
         const delta = timestamp - this.lastTimestamp
         this.lastTimestamp = timestamp
@@ -333,12 +332,18 @@ class Editor {
         this.state.update(delta)
 
         // attempt update
-        await this.update(delta)
+        this.update(delta)
     
         // attempt draw
-        if (timestamp > this.lastDraw + 1/60) {
-            this.lastDraw = timestamp
-            await this.draw(delta)
+        const drawInterval = 1000 / 60
+        if (this.lastDraw == 0)
+            this.lastDraw = timestamp - drawInterval
+        const drawElapsed = timestamp - this.lastDraw
+        if (drawElapsed >= drawInterval - .1) {
+            this.lastDraw += drawInterval
+            if (timestamp - this.lastDraw >= drawInterval)
+                this.lastDraw = timestamp
+            this.draw(delta)
         }
         
         // profile
