@@ -180,40 +180,39 @@ export class Flow {
             //console.log(node, 'needsConnectionUpdate')
             node.needsConnectionUpdate = false
             const connections = node._connections/*flow.connections.filter(c => node.connectionPoints.find(p => c.has(p)))*/
-            const updating = []
+            const inputsWithConnection = new Set()
+            for (const connection of connections) {
+                for (const point of connection.points) {
+                    if (point.node == node && point.type == 'input')
+                        inputsWithConnection.add(point)
+                }
+            }
+            for (const point of node.connectionPoints) {
+                if (point.type == 'input' && !inputsWithConnection.has(point))
+                    node.update(point.id)
+            }
 
-            // get call connections assosciated with this node... cache should skip this step? possibly?
-            const nodeConnections = connections // .filter(c => c.points.find(p => p.node == node))
-            // get all of THIS nodes input points 
-            // it CAN have duplicate points, since it flatMaps multiple connections
-            const inputsWithConnection = nodeConnections.flatMap(c => c.points).filter(p => (p.node == node && p.type == 'input'))
-            // if no input nodes have input connections, update them with 0
-            node.connectionPoints.filter(p => p.type == 'input' && !inputsWithConnection.includes(p)).forEach(p => {
-                node.update(p.id)
-            })
-            
-            // for each connection that contains our node's output nodes, update the connection
-            nodeConnections.filter(c => c.points.find(p => p.node == node).type == 'output').forEach(c => {
+            for (const c of connections) {
+                if (c.points.find(p => p.node == node)?.type != 'output')
+                    continue
                 c.update()
                 if (depth > 0)
-                    return
+                    continue
                 const nextValue = c.nextValue ?? c.value
                 if (c.value != nextValue)
                     this.editor?.markRenderDirty?.()
                 c.value = nextValue
                 c.nextValue = null
-                c.points.forEach(p => {
+                for (const p of c.points) {
                     // we have to make sure we don't update other output nodes, otherwise bad stuff might happen?
                     if (p.node == node || !p.node || p.type != 'input')
-                        return
+                        continue
                     p.node.hasUpdated = true//false
                     p.node.needsSoftUpdate = false
-                    const isUpdate = p.node.update(p.id) ?? p.node//this._updateNode(p.node, depth + 1, true)
+                    p.node.update(p.id)//this._updateNode(p.node, depth + 1, true)
                     //console.log('> force update', p.node)
-                    if (isUpdate != null && !updating.includes(isUpdate))
-                        updating.push(isUpdate)
-                })
-            })
+                }
+            }
             // updating.forEach(n => this._updateNode(n, depth + 1, false))
             /*connections.forEach(c => {
                 connections.needsUpdate = false
@@ -261,8 +260,10 @@ export class Flow {
         nodes.forEach(n => {
             n.needsSoftUpdate = true
             n.hasUpdated = false
-            n.debug.depth = 0
-            n.debug.updated = false
+            if (editor.debug) {
+                n.debug.depth = 0
+                n.debug.updated = false
+            }
         })
         if (profiling)
             upprofiler.group('update nodes')
@@ -385,13 +386,14 @@ export class Flow {
         if (profiling)
             profiler.swap('draw connections')
         if (drawConnections) {
+            context.save()
             this.connections.forEach(c => {
                 if (!this.isBoundsVisible(this.getConnectionBounds(c)))
                     return
-                context.save()
+                context.globalAlpha = 1
                 c.draw(context)
-                context.restore()
             })
+            context.restore()
         }
         if (profiling)
             profiler.close()

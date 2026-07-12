@@ -165,7 +165,13 @@ export class BaseNode {
             indexOrId = this.connectionPoints.findIndex(p => p.id == indexOrId)
         const point = this.connectionPoints[indexOrId]
         // get all connections
-        const value = this.editor != null ? this._connections.filter(c => c.has(point)).reduce((p, v) => p + v.value, 0) : 0//this.editor.flow.connections.filter(c => c.has(point)).reduce((p, v) => p + v.value, 0) : 0
+        let value = 0
+        if (this.editor != null) {
+            for (const connection of this._connections) {
+                if (connection.has(point))
+                    value += connection.value
+            }
+        }
         if (point != null)
             point.value = value
 

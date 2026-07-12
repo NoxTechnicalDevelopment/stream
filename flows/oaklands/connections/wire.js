@@ -392,7 +392,11 @@ export class Connection {
         //if (this.ghost) // since connections get selected after clone, this will prevent them from updating... for now it's fine to leave it without
         //    return // don't handle logic... it's kind of funny to see it update live... but no.
         // TODO: cache output nodes
-        let a = this.points.filter(p => p.type == 'output').reduce((ac, v) => ac + v.value, 0) //this.a.type == 'input' ? this.b : this.a
+        let a = 0
+        for (const point of this.points) {
+            if (point.type == 'output')
+                a += point.value
+        }
         a = Math.max(Math.min(a, this.max), 0)
         
         //console.log(`a: ${a}`)
