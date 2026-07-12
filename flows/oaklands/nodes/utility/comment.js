@@ -40,6 +40,7 @@ export class Node extends BaseNode {
             case "#edit":
                 this.getUserTextInput(this.comment).then(v => {
                     this.comment = v
+                    this.invalidate()
                 })
                 break
         }
@@ -49,6 +50,13 @@ export class Node extends BaseNode {
      * @param {CanvasRenderingContext2D} context 
      */
     draw(context) {
+        // precalculate size needed for this frame's draw
+        context.font = '20px monospace'
+        const width = Math.max((context.measureText(this.comment).width + 10) / 100, 1)
+        if (this.size[0] != width) {
+            this.size[0] = width
+            this.editor?.markRenderDirty?.()
+        }
         super.draw(context)
         /*const context2 = super.draw(context)
         if (!context2)
@@ -88,11 +96,6 @@ export class Node extends BaseNode {
         context.textAlign = 'center'
         context.textBaseline = 'middle'
         context.font = '20px monospace'
-        const commentWidth = context.measureText(this.comment)
-        // this is technically an illegal action, and should be handled in update()
-        // but since we dont have access to context, we have to do it here
-        // that means the size will always be 1 frame behind... but it doesn't really matter
-        this.size[0] = Math.max((commentWidth.width + 10) / 100, 1)
         context.fillText(this.comment, centerX, centerY)
 
         //this.cacheDraw(orig)

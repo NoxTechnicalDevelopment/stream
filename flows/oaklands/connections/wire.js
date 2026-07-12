@@ -97,6 +97,7 @@ export class Connection {
 
     markRuntimeCachesDirty() {
         this.flow?.markRuntimeCachesDirty?.()
+        this.editor?.markRenderDirty?.()
     }
 
     isValid() {

@@ -36,8 +36,14 @@ class Editor {
         this.lastDraw = 0
         this.delta = 0
         this.loading = false
+        this.renderDirty = true
+        this.drawnWidth = 0
+        this.drawnHeight = 0
+        this.drawnDpr = 0
         this.shouldResetContextEachFrame = false
         this.contextResetBenchmarkDone = false
+
+        document.fonts?.ready.then(() => this.markRenderDirty()) // if fonts loaded late we redraw them now
         
         requestAnimationFrame(() => this.benchmarkContextReset())
         requestAnimationFrame(this.loop)
@@ -84,7 +90,12 @@ class Editor {
         finally {
             this.contextResetBenchmarkDone = true
             context.reset()
+            this.markRenderDirty()
         }
+    }
+
+    markRenderDirty() {
+        this.renderDirty = true
     }
 
     update(dt) {
@@ -134,6 +145,9 @@ class Editor {
         const dpr = window.devicePixelRatio || 1
         const width = canvas.clientWidth
         const height = canvas.clientHeight
+        this.drawnWidth = width
+        this.drawnHeight = height
+        this.drawnDpr = dpr
 
         // correct sizes. Reassigning canvas dimensions every frame clears the
         // backing store and can leave large cached flows blank under load.
@@ -331,6 +345,16 @@ class Editor {
         const delta = timestamp - this.lastTimestamp
         this.lastTimestamp = timestamp
 
+        const hoverFadeActive = this.state.hoveredNodeType != null && this.state.hoverTime != null && Date.now() - this.state.hoverTime < 800 // fade out takes 800ms which needs constant rendering
+        if (
+            hoverFadeActive ||
+            this.drawnWidth != this.canvas.clientWidth ||
+            this.drawnHeight != this.canvas.clientHeight ||
+            this.drawnDpr != (window.devicePixelRatio || 1)
+        ) {
+            this.markRenderDirty()
+        }
+
         // extra updates
         this.state.update(delta)
 
@@ -342,15 +366,14 @@ class Editor {
         if (this.lastDraw == 0)
             this.lastDraw = timestamp - drawInterval
         const drawElapsed = timestamp - this.lastDraw
-        if (drawElapsed >= drawInterval - .1) {
+        if (this.renderDirty && drawElapsed >= drawInterval - .1) {
+            this.renderDirty = false
             this.lastDraw += drawInterval
             if (timestamp - this.lastDraw >= drawInterval)
                 this.lastDraw = timestamp
             this.draw(delta)
+            profiler.log()
         }
-        
-        // profile
-        profiler.log()
 
         // loop
         requestAnimationFrame(this.loop)
@@ -383,6 +406,7 @@ class Editor {
         finally {
             this.delta = 0
             this.loading = false
+            this.markRenderDirty()
         }
         //console.log(this.main_flow, saveState)
     }

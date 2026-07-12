@@ -51,8 +51,10 @@ export class Node extends BaseNode {
                     editor._speaker = false
                 }, 4000)
                 this.messages.push(this.template.replaceAll('{num}', value).replaceAll('{display_name}', 'UserNameHere'))
+                editor.markRenderDirty?.()
                 setTimeout(() => {
                     this.messages.splice(0, 1)
+                    editor.markRenderDirty?.()
                 }, 16000)
             }
         }

@@ -123,6 +123,11 @@ export class EditorState {
     deserialize(data) {
         this.pan = data.pan || this.pan
         this.scale = data.scale || this.scale
+        this.markRenderDirty()
+    }
+
+    markRenderDirty() {
+        this.editor?.markRenderDirty?.()
     }
     
     canSelect() {
@@ -212,6 +217,8 @@ export class EditorState {
             (this.heldKeys.includes('keyd') ? -1 : 0) + (this.heldKeys.includes('keya') ? 1 : 0),
             (this.heldKeys.includes('keys') ? -1 : 0) + (this.heldKeys.includes('keyw') ? 1 : 0)
         ]
+        if (dir[0] != 0 || dir[1] != 0)
+            this.markRenderDirty()
         const speed = .75 + (this.heldKeys.includes('Shift') ? .75 : 0) - (this.heldKeys.includes('Control') ? .5 : 0)
         this.pan[0] += speed * delta * dir[0]// * (1 / this.scale)
         this.pan[1] += speed * delta * dir[1]// * (1 / this.scale)ik
@@ -1673,6 +1680,11 @@ export class EditorState {
         canvas.addEventListener('wheel', this.onWheel)
         window.addEventListener('blur', this.onBlur)
 
+        const markRenderDirty = () => this.markRenderDirty()
+        for (const event of ['pointerdown', 'pointermove', 'pointerup', 'touchstart', 'touchmove', 'touchend', 'keydown', 'keyup', 'wheel', 'input', 'change'])
+            document.addEventListener(event, markRenderDirty)
+        document.addEventListener('close', markRenderDirty, true)
+
         document.querySelector('#mobile-duplicate').addEventListener('click', () => {
             this.handleClone()
         })
@@ -1934,6 +1946,7 @@ export class EditorState {
 
         const captureProfile = profiler => {
             profiler.capture()
+            this.markRenderDirty()
             const wait = () => {
                 if (profiler.enabled)
                     requestAnimationFrame(wait)

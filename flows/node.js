@@ -41,6 +41,7 @@ class ConnectionPoint {
     
     invalidate() {
         this.invalidated = true
+        this.node?.editor?.markRenderDirty?.()
     }
 
     isHovering(x, y) {
@@ -154,6 +155,7 @@ export class BaseNode {
             return // already the same... so do nothing
         point.value = value
         this.needsConnectionUpdate = true
+        this.editor?.markRenderDirty?.()
     }
 
     getConnectionPointValue(indexOrId) {
@@ -298,6 +300,7 @@ export class BaseNode {
         if (typeof(indexOrId) != Number)
             indexOrId = this.interactables.findIndex(p => p.id == indexOrId)
         this.interactables[indexOrId].text = text
+        this.invalidate()
     }
 
     calculateInteractable(interactable, size) {
@@ -573,6 +576,7 @@ export class BaseNode {
 
     invalidate() {
         this.invalidated = true
+        this.editor?.markRenderDirty?.()
     }
 
     drawPoints(context) {

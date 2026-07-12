@@ -89,6 +89,8 @@ export class Flow {
 
     markRuntimeCachesDirty() {
         this.runtimeCachesDirty = true
+        this.editor?.markRenderDirty?.()
+        this.runtimeEditor?.markRenderDirty?.()
     }
 
     /**
@@ -195,7 +197,10 @@ export class Flow {
                 c.update()
                 if (depth > 0)
                     return
-                c.value = c.nextValue ?? c.value
+                const nextValue = c.nextValue ?? c.value
+                if (c.value != nextValue)
+                    this.editor?.markRenderDirty?.()
+                c.value = nextValue
                 c.nextValue = null
                 c.points.forEach(p => {
                     // we have to make sure we don't update other output nodes, otherwise bad stuff might happen?
@@ -271,7 +276,10 @@ export class Flow {
         if (profiling)
             upprofiler.close()
         this.connections.forEach(c => {
-            c.value = c.nextValue ?? c.value
+            const nextValue = c.nextValue ?? c.value
+            if (c.value != nextValue)
+                this.editor?.markRenderDirty?.()
+            c.value = nextValue
             c.nextValue = null
         })
         /*this.nodes.forEach(n => {
