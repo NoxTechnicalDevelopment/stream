@@ -27,7 +27,7 @@ class ConnectionPoint {
     id
     tooltip
     value
-    active
+    _active = false
     invalidated = false
 
     position // point after rotation relative to 0, 0 of node's position
@@ -37,6 +37,17 @@ class ConnectionPoint {
         Object.keys(values).forEach(k => {
             this[k] = values[k]
         })
+    }
+
+    get active() {
+        return this._active
+    }
+
+    set active(value) {
+        if (this._active == value)
+            return
+        this._active = value
+        this.node?.invalidateConnectionPointPositions?.()
     }
     
     invalidate() {
@@ -71,6 +82,8 @@ export class BaseNode {
         this.cacheScale = 1
         this.cacheBypassed = false
         this.cachePadding = {left: 0, top: 0, right: 0, bottom: 0}
+        this._sizeCache = null
+        this._connectionPointPositionCache = null
 
         // logic
         this.connectionPoints = []
@@ -93,6 +106,20 @@ export class BaseNode {
             depth: 0,
             updated: false
         }
+    }
+
+    /* ROTATION */
+
+    get rotation() {
+        return this._rotation ?? 0
+    }
+
+    set rotation(value) {
+        if (this._rotation == value)
+            return
+        this._rotation = value
+        this.invalidateConnectionPointPositions()
+        this.editor?.markRenderDirty?.()
     }
 
     /* SAVING */
@@ -137,6 +164,7 @@ export class BaseNode {
             node: this, type, side, id, tooltip, value: 0, // should technically be null... but... whatever
             active: true // only false when they are "added" or "removed"
         }))
+        this.invalidateConnectionPointPositions()
         this.subflow?.markRuntimeCachesDirty?.()
         return length
     }
@@ -212,6 +240,11 @@ export class BaseNode {
     }
 
     getConnectionPointPositions() {
+        const size = this.getSize()
+        const cached = this._connectionPointPositionCache
+        if (cached?.size == size && cached.rotation == this.rotation)
+            return cached.points
+
         const points = this.connectionPoints.filter(p => p.active)
 
         // calculate totals
@@ -223,7 +256,6 @@ export class BaseNode {
         }
 
         // calculate sides
-        const size = this.getSize()
         const connectionPointSides = {
             'top': [[0, 0], [size[0], 0]],
             'bottom': [[0, size[1]], [size[0], size[1]]],
@@ -246,7 +278,13 @@ export class BaseNode {
             indexes[point.side] += 1
         }
 
+        this._connectionPointPositionCache = {size, rotation: this.rotation, points: positions}
         return positions
+    }
+
+    invalidateConnectionPointPositions() {
+        this._connectionPointPositionCache = null
+        this.editor?.markRenderDirty?.()
     }
 
     invalidatePoint(indexOrId) {
@@ -257,7 +295,13 @@ export class BaseNode {
     /* VISUAL */
 
     getSize(scale=1) {
-        return this.size.map(x => x * 100 * scale)
+        if (scale != 1)
+            return this.size.map(x => x * 100 * scale)
+        const width = this.size[0] * 100
+        const height = this.size[1] * 100
+        if (this._sizeCache == null || this._sizeCache[0] != width || this._sizeCache[1] != height)
+            this._sizeCache = [width, height]
+        return this._sizeCache
     }
 
     /* INPUT SYSTEM */
